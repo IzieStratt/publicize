@@ -1,0 +1,23 @@
+{
+  "display_information": {
+    "name": "Publicize",
+    "description": "Channel managers can make their private channel public."
+  },
+  "features": {
+    "bot_user": { "display_name": "publicize", "always_online": true },
+    "slash_commands": [
+      {
+        "command": "/publicize",
+        "description": "Make this private channel public (channel managers only)",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": { "scopes": { "bot": ["commands"] } },
+  "settings": {
+    "org_deploy_enabled": true,
+    "socket_mode_enabled": true,
+    "interactivity": { "is_enabled": true },
+    "token_rotation_enabled": false
+  }
+}

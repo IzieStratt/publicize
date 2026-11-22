@@ -1,0 +1,19 @@
+[package]
+name = "publicize"
+version = "0.1.0"
+edition = "2021"
+description = "Slack slash command that lets a channel manager convert their private channel to public."
+license = "MIT"
+repository = "https://github.com/IzieStratt/publicize"
+readme = "README.md"
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
