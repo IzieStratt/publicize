@@ -41,7 +41,7 @@ cargo run
 
 The Slack app itself only needs the `commands` bot scope; the reply goes back
 through the slash command's `response_url`. The privileged calls run on the
-admin user token, which has to belong to an org/workspace admin — a bot token
+admin user token, which has to belong to an org/workspace admin. A bot token
 can't make them.
 
 The app manifest is in `manifest.json`.

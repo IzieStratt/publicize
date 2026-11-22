@@ -46,7 +46,7 @@ impl Slack {
     async fn admin_post(&self, method: &str, params: &[(&str, &str)]) -> Result<Value> {
         let mut form = params.to_vec();
         form.push(("token", &self.cfg.admin_token));
-        let resp: Value = self
+        Ok(self
             .http
             .post(format!("https://slack.com/api/{method}"))
             .header("Cookie", format!("d={}", self.cfg.admin_cookie))
@@ -54,8 +54,7 @@ impl Slack {
             .send()
             .await?
             .json()
-            .await?;
-        Ok(resp)
+            .await?)
     }
 
     pub async fn convert_to_public(&self, channel_id: &str) -> Result<()> {
