@@ -12,7 +12,8 @@ use config::Config;
 use slack::Slack;
 
 const REFUSE_TEXT: &str =
-    ":bleh: sorry it doesnt appear you're the cm or creator, if this seems wrong reach out to <@U09KKMHLS15>";
+    ":bleh: sorry it doesnt appear you're an admin, the cm, or the creator";
+const ERROR_TEXT: &str = "something broke on my end, try again in a bit";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,6 +26,19 @@ async fn main() -> Result<()> {
 
     let cfg = Config::from_env()?;
     let slack = Slack::new(cfg);
+
+    // `publicize check <channel_id> <user_id>`: dry run of the permission
+    // checks against the real API, without converting anything.
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("check") {
+        let (Some(channel), Some(user)) = (args.get(2), args.get(3)) else {
+            anyhow::bail!("usage: publicize check <channel_id> <user_id>");
+        };
+        let (is_private, creator) = slack.channel_info(channel).await;
+        let allowed = manager::is_channel_manager(&slack, user, channel, creator.as_deref()).await?;
+        println!("private={is_private} creator={creator:?} allowed={allowed}");
+        return Ok(());
+    }
 
     loop {
         if let Err(e) = run_once(&slack).await {
@@ -59,8 +73,12 @@ async fn run_once(slack: &Slack) -> Result<()> {
                 let slack = slack.clone();
                 let payload = env["payload"].clone();
                 tokio::spawn(async move {
+                    let response_url = payload["response_url"].as_str().unwrap_or_default().to_owned();
                     if let Err(e) = handle_slash(&slack, payload).await {
                         error!("slash handler error: {e:#}");
+                        if !response_url.is_empty() {
+                            let _ = slack.respond(&response_url, ERROR_TEXT).await;
+                        }
                     }
                 });
             }
@@ -80,15 +98,20 @@ async fn handle_slash(slack: &Slack, payload: Value) -> Result<()> {
         return Ok(());
     }
 
-    if slack.is_public(channel_id).await? {
+    let (is_private, creator) = slack.channel_info(channel_id).await;
+    if !is_private {
         slack
             .respond(response_url, ":neocat: this channel already public")
             .await?;
         return Ok(());
     }
 
-    if !manager::is_channel_manager(slack, user_id, channel_id).await? {
-        slack.respond(response_url, REFUSE_TEXT).await?;
+    if !manager::is_channel_manager(slack, user_id, channel_id, creator.as_deref()).await? {
+        let text = match &slack.cfg().contact_user {
+            Some(u) => format!("{REFUSE_TEXT}, if this seems wrong reach out to <@{u}>"),
+            None => REFUSE_TEXT.to_owned(),
+        };
+        slack.respond(response_url, &text).await?;
         return Ok(());
     }
 

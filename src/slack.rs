@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde_json::Value;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::config::Config;
 
@@ -16,6 +16,10 @@ impl Slack {
             http: reqwest::Client::new(),
             cfg,
         }
+    }
+
+    pub fn cfg(&self) -> &Config {
+        &self.cfg
     }
 
     pub async fn open_socket(&self) -> Result<String> {
@@ -65,6 +69,8 @@ impl Slack {
     }
 
     pub async fn channel_managers(&self, channel_id: &str) -> Result<Vec<String>> {
+        // Built-in "Channel Manager" role ID, as returned by
+        // admin.roles.entity.listAssignments (not in Slack's public docs).
         const CHANNEL_MANAGER_ROLE: &str = "Rl0A";
         let resp = self
             .admin_post(
@@ -92,18 +98,26 @@ impl Slack {
             || u["is_primary_owner"].as_bool().unwrap_or(false))
     }
 
-    pub async fn channel_creator(&self, channel_id: &str) -> Result<Option<String>> {
-        let resp = self
+    /// Returns `(is_private, creator)`. With a user token, `conversations.info`
+    /// only sees private channels the admin is in; for any other channel it
+    /// fails, so we assume private with an unknown creator.
+    pub async fn channel_info(&self, channel_id: &str) -> (bool, Option<String>) {
+        match self
             .admin_post("conversations.info", &[("channel", channel_id)])
-            .await?;
-        Ok(resp["channel"]["creator"].as_str().map(str::to_owned))
-    }
-
-    pub async fn is_public(&self, channel_id: &str) -> Result<bool> {
-        let resp = self
-            .admin_post("conversations.info", &[("channel", channel_id)])
-            .await?;
-        Ok(resp["channel"]["is_private"].as_bool() == Some(false))
+            .await
+        {
+            Ok(resp) => {
+                let c = &resp["channel"];
+                (
+                    c["is_private"].as_bool() != Some(false),
+                    c["creator"].as_str().map(str::to_owned),
+                )
+            }
+            Err(e) => {
+                warn!("{e:#}; assuming {channel_id} is private");
+                (true, None)
+            }
+        }
     }
 
     pub async fn respond(&self, response_url: &str, text: &str) -> Result<()> {
@@ -118,6 +132,9 @@ impl Slack {
             .await?;
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(anyhow!("response_url reply failed: {status} {body}"));
+        }
         info!("ephemeral reply -> {status} {body}");
         Ok(())
     }

@@ -16,4 +16,7 @@ https://izie.top did
    - `SLACK_APP_TOKEN`: app-level token (`xapp-…`, `connections:write`) for socket mode
    - `SLACK_ADMIN_TOKEN`: the admin's user token (`xoxp-…`). a browser session token (`xoxc-…`) works too
    - `SLACK_ADMIN_COOKIE`: only needed with an `xoxc` token (the `d` cookie value)
+   - `PUBLICIZE_CONTACT` (optional): user ID to mention when someone gets refused
 4. `cargo run --release`
+
+dry-run the permission check without converting anything: `cargo run -- check <channel_id> <user_id>`

@@ -1,14 +1,14 @@
 {
   "display_information": {
     "name": "Publicize",
-    "description": "Channel managers can make their private channel public."
+    "description": "Admins, channel managers and channel creators can make a private channel public."
   },
   "features": {
     "bot_user": { "display_name": "publicize", "always_online": true },
     "slash_commands": [
       {
         "command": "/publicize",
-        "description": "Make this private channel public (channel managers only)",
+        "description": "Make this private channel public (admins, channel managers, creators)",
         "should_escape": false
       }
     ]
