@@ -8,12 +8,18 @@ pub struct Config {
     pub admin_cookie: Option<String>,
     /// Who to point people at when they're refused.
     pub contact_user: Option<String>,
+    /// Nemo's channel manager API (base URL and `nemo_live_` key), checked first when set.
+    pub nemo_url: Option<String>,
+    pub nemo_key: Option<String>,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self> {
         let get = |k: &str| std::env::var(k).map_err(|_| anyhow!("missing env var {k}"));
+        let opt = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
         Ok(Self {
+            nemo_url: opt("NEMO_API_URL").map(|u| u.trim_end_matches('/').to_owned()),
+            nemo_key: opt("NEMO_API_KEY"),
             app_token: get("SLACK_APP_TOKEN")?,
             admin_token: get("SLACK_ADMIN_TOKEN")?,
             contact_user: std::env::var("PUBLICIZE_CONTACT").ok().filter(|c| !c.is_empty()),

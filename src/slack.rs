@@ -90,6 +90,27 @@ impl Slack {
         Ok(users)
     }
 
+    /// Asks nemo's `/api/v1/channels/{channel}/managers/{user}`. `None` when nemo isn't
+    /// configured, the member hasn't opted in, or the call fails.
+    pub async fn nemo_is_manager(&self, channel_id: &str, user_id: &str) -> Option<bool> {
+        let (url, key) = (self.cfg.nemo_url.as_ref()?, self.cfg.nemo_key.as_ref()?);
+        let resp = self
+            .http
+            .get(format!("{url}/api/v1/channels/{channel_id}/managers/{user_id}"))
+            .bearer_auth(key)
+            .send()
+            .await
+            .and_then(|r| r.error_for_status());
+        let body: Value = match resp {
+            Ok(r) => r.json().await.ok()?,
+            Err(e) => {
+                warn!("nemo manager check failed for {channel_id}: {e}");
+                return None;
+            }
+        };
+        body["is_manager"].as_bool()
+    }
+
     pub async fn is_admin(&self, user_id: &str) -> Result<bool> {
         let resp = self.admin_post("users.info", &[("user", user_id)]).await?;
         let u = &resp["user"];

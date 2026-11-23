@@ -12,6 +12,10 @@ pub async fn is_channel_manager(
         return Ok(true);
     }
 
+    if slack.nemo_is_manager(channel_id, user_id).await == Some(true) {
+        return Ok(true);
+    }
+
     let managers = slack.channel_managers(channel_id).await?;
     if !managers.is_empty() {
         return Ok(managers.iter().any(|m| m == user_id));
