@@ -118,7 +118,7 @@ async fn handle_slash(slack: &Slack, payload: Value) -> Result<()> {
     match slack.convert_to_public(channel_id).await {
         Ok(()) => {
             slack
-                .respond(response_url, "This channel is now public.")
+                .respond(response_url, ":kitty-wow: meoww ur channel public now :3")
                 .await?;
         }
         Err(e) => {
