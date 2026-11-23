@@ -17,6 +17,7 @@
       "bot": ["commands"],
       "user": [
         "admin.conversations:write",
+        "admin.conversations:read",
         "admin.roles:read",
         "users:read",
         "groups:read"

@@ -99,8 +99,8 @@ impl Slack {
     }
 
     /// Returns `(is_private, creator)`. With a user token, `conversations.info`
-    /// only sees private channels the admin is in; for any other channel it
-    /// fails, so we assume private with an unknown creator.
+    /// only sees private channels the admin is in, so for other channels we
+    /// ask admin search, and if that fails too we assume private.
     pub async fn channel_info(&self, channel_id: &str) -> (bool, Option<String>) {
         match self
             .admin_post("conversations.info", &[("channel", channel_id)])
@@ -114,10 +114,33 @@ impl Slack {
                 )
             }
             Err(e) => {
-                warn!("{e:#}; assuming {channel_id} is private");
-                (true, None)
+                warn!("{e:#}; falling back to admin.conversations.search");
+                self.search_channel(channel_id).await.unwrap_or_else(|e| {
+                    warn!("{e:#}; assuming {channel_id} is private");
+                    (true, None)
+                })
             }
         }
+    }
+
+    /// Admin search sees every channel in the org, member or not.
+    async fn search_channel(&self, channel_id: &str) -> Result<(bool, Option<String>)> {
+        let resp = self
+            .admin_post(
+                "admin.conversations.search",
+                &[("query", channel_id), ("limit", "10")],
+            )
+            .await?;
+        let c = resp["conversations"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|c| c["id"].as_str() == Some(channel_id))
+            .ok_or_else(|| anyhow!("{channel_id} not in admin.conversations.search"))?;
+        Ok((
+            c["is_private"].as_bool() != Some(false),
+            c["creator_id"].as_str().map(str::to_owned),
+        ))
     }
 
     pub async fn respond(&self, response_url: &str, text: &str) -> Result<()> {
