@@ -4,7 +4,8 @@ use anyhow::{anyhow, Result};
 pub struct Config {
     pub app_token: String,
     pub admin_token: String,
-    pub admin_cookie: String,
+    /// Only needed when SLACK_ADMIN_TOKEN is a browser session token (xoxc).
+    pub admin_cookie: Option<String>,
 }
 
 impl Config {
@@ -13,7 +14,7 @@ impl Config {
         Ok(Self {
             app_token: get("SLACK_APP_TOKEN")?,
             admin_token: get("SLACK_ADMIN_TOKEN")?,
-            admin_cookie: get("SLACK_ADMIN_COOKIE")?,
+            admin_cookie: std::env::var("SLACK_ADMIN_COOKIE").ok().filter(|c| !c.is_empty()),
         })
     }
 }

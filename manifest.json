@@ -13,7 +13,15 @@
       }
     ]
   },
-  "oauth_config": { "scopes": { "bot": ["commands"] } },
+  "oauth_config": { "scopes": {
+      "bot": ["commands"],
+      "user": [
+        "admin.conversations:write",
+        "admin.roles:read",
+        "users:read",
+        "groups:read"
+      ]
+    } },
   "settings": {
     "org_deploy_enabled": true,
     "socket_mode_enabled": true,

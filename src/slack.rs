@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use serde::Deserialize;
 use serde_json::Value;
 use tracing::info;
 
@@ -9,12 +8,6 @@ use crate::config::Config;
 pub struct Slack {
     http: reqwest::Client,
     cfg: Config,
-}
-
-#[derive(Deserialize)]
-struct ApiOk {
-    ok: bool,
-    error: Option<String>,
 }
 
 impl Slack {
@@ -43,39 +36,32 @@ impl Slack {
             .ok_or_else(|| anyhow!("no url in apps.connections.open response"))
     }
 
+    /// Calls a Web API method as the admin user. Works with an OAuth user
+    /// token (xoxp) or a browser session token (xoxc + `d` cookie).
     async fn admin_post(&self, method: &str, params: &[(&str, &str)]) -> Result<Value> {
-        let mut form = params.to_vec();
-        form.push(("token", &self.cfg.admin_token));
-        Ok(self
+        let mut req = self
             .http
             .post(format!("https://slack.com/api/{method}"))
-            .header("Cookie", format!("d={}", self.cfg.admin_cookie))
-            .form(&form)
-            .send()
-            .await?
-            .json()
-            .await?)
+            .bearer_auth(&self.cfg.admin_token)
+            .form(params);
+        if let Some(cookie) = &self.cfg.admin_cookie {
+            req = req.header("Cookie", format!("d={cookie}"));
+        }
+        let resp: Value = req.send().await?.json().await?;
+        if resp["ok"].as_bool() != Some(true) {
+            let err = resp["error"].as_str().unwrap_or("unknown");
+            return Err(anyhow!("{method} failed: {err}"));
+        }
+        Ok(resp)
     }
 
     pub async fn convert_to_public(&self, channel_id: &str) -> Result<()> {
-        let resp: ApiOk = self
-            .http
-            .post("https://slack.com/api/admin.conversations.convertToPublic")
-            .bearer_auth(&self.cfg.admin_token)
-            .header("Cookie", format!("d={}", self.cfg.admin_cookie))
-            .form(&[("channel_id", channel_id)])
-            .send()
-            .await?
-            .json()
-            .await?;
-        if resp.ok {
-            Ok(())
-        } else {
-            Err(anyhow!(
-                "convertToPublic failed: {}",
-                resp.error.unwrap_or_else(|| "unknown".into())
-            ))
-        }
+        self.admin_post(
+            "admin.conversations.convertToPublic",
+            &[("channel_id", channel_id)],
+        )
+        .await?;
+        Ok(())
     }
 
     pub async fn channel_managers(&self, channel_id: &str) -> Result<Vec<String>> {
@@ -86,9 +72,6 @@ impl Slack {
                 &[("entity_id", channel_id), ("role_id", CHANNEL_MANAGER_ROLE)],
             )
             .await?;
-        if resp["ok"].as_bool() != Some(true) {
-            return Err(anyhow!("listAssignments failed: {resp}"));
-        }
         let users = resp["role_assignments"]
             .as_array()
             .into_iter()
