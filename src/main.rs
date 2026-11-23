@@ -80,6 +80,13 @@ async fn handle_slash(slack: &Slack, payload: Value) -> Result<()> {
         return Ok(());
     }
 
+    if slack.is_public(channel_id).await? {
+        slack
+            .respond(response_url, ":neocat: this channel already public")
+            .await?;
+        return Ok(());
+    }
+
     if !manager::is_channel_manager(slack, user_id, channel_id).await? {
         slack.respond(response_url, REFUSE_TEXT).await?;
         return Ok(());

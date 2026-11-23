@@ -116,6 +116,13 @@ impl Slack {
         Ok(resp["channel"]["creator"].as_str().map(str::to_owned))
     }
 
+    pub async fn is_public(&self, channel_id: &str) -> Result<bool> {
+        let resp = self
+            .admin_post("conversations.info", &[("channel", channel_id)])
+            .await?;
+        Ok(resp["channel"]["is_private"].as_bool() == Some(false))
+    }
+
     pub async fn respond(&self, response_url: &str, text: &str) -> Result<()> {
         let resp = self
             .http
